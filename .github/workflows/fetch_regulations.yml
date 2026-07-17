@@ -1,6 +1,12 @@
 name: Fetch Regulations
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "scripts/fetch_regulations.py"
+      - ".github/workflows/fetch_regulations.yml"
   workflow_dispatch:
     inputs:
       commit_message:
@@ -37,6 +43,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "${{ github.event.inputs.commit_message }}"
+            git commit -m "${{ github.event.inputs.commit_message || 'docs: update regulation markdown files' }}"
             git push
           fi
