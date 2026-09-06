@@ -1,0 +1,18 @@
+---
+layout: default
+---
+{% include breadcrumb.html %}
+
+<article class="rule">
+  <h1 class="rule-title">{{ page.title }}</h1>
+
+  {% if page.enacted_date or page.enacting_body %}
+  <p class="rule-meta">
+    {% if page.enacted_date %}{{ page.enacted_date }}{% endif %}
+    {% if page.enacting_body %}{{ page.enacting_body }}{% endif %}
+    {% if page.rule_number %}（{{ page.rule_number }}）{% endif %}
+  </p>
+  {% endif %}
+
+  {{ content }}
+</article>

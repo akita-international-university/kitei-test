@@ -1,0 +1,28 @@
+title: "【テスト環境】規程集"
+description: "GitHubを用いた規程管理の可能性を検証するための試験環境"
+lang: ja
+
+markdown: kramdown
+kramdown:
+  hard_wrap: false
+
+collections:
+  rules:
+    output: true
+    permalink: /rules/:path/
+
+defaults:
+  - scope:
+      path: ""
+      type: rules
+    values:
+      layout: rule
+
+exclude:
+  - html/
+  - scripts/
+  - requirements.txt
+  - .venv/
+  - Gemfile
+  - Gemfile.lock
+  - README.md
