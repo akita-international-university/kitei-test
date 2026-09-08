@@ -288,6 +288,11 @@ def convert_body(soup) -> str:
             elif not pending_text:
                 pending_class = inferred
                 pending_text = text
+            elif pending_class != inferred:
+                # 推定クラスが変わった場合は別ブロックとして扱う（例: 附則見出し→本文）。
+                flush_pending()
+                pending_class = inferred
+                pending_text = text
             else:
                 # パターンに一致しない断片 = 直前の段落の折り返し継続とみなして連結する
                 pending_text += text
