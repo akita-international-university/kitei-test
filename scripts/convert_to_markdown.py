@@ -38,6 +38,29 @@ RE_FUKI_TITLE = re.compile(r"^附[\s\u3000]*則$")
 RE_NUMBERED_KOU = re.compile(r"^[０-９0-9]+[\s\u3000]")
 RE_NUMBERED_SUB = re.compile(r"^([０-９0-9]+[．.]|[•]|[ａ-ｚa-z][．.])")
 
+# 見出し系クラス。原文では見た目を整えるため(例:「附　　則」「総　　則」)、
+# 短い見出し語の中に全角スペース等が装飾目的で挿入されていることがある。
+HEADING_CLASSES = {"shou", "setsu", "jou-hyoudai", "fuki-title", "maegaki"}
+
+# 2文字以上連続する空白（半角スペース・タブ・全角スペース）を検出する正規表現。
+# 号番号の直後の区切りスペース(1文字)のような意味のある空白は対象にしない。
+RE_DECORATIVE_WHITESPACE = re.compile(r"[ \t　]{2,}")
+
+
+def clean_text(text: str, cls: str | None) -> str:
+    """装飾目的で挿入された連続空白を、アクセシビリティの観点から整形する。
+
+    見出し系クラス(HEADING_CLASSES)では、原文の「附　　則」のように見た目を
+    整えるためだけに単語の途中へ挿入された連続空白を完全に取り除く(結果は
+    「附則」)。一方、条文・項・号などの本文系クラスでは、金額表や保存期間の
+    一覧(moku2)のように連続空白が擬似的な列区切りとして使われているケースが
+    あり、全て除去すると別々の項目が意図せず連結されてしまう恐れがあるため、
+    半角スペース1つに正規化するにとどめる。
+    """
+    if cls in HEADING_CLASSES:
+        return RE_DECORATIVE_WHITESPACE.sub("", text)
+    return RE_DECORATIVE_WHITESPACE.sub(" ", text)
+
 
 def sanitize_filename(name: str) -> str:
     """規程名をファイル名として使える文字列に変換する（get_kitei.py と同じ規則）。"""
@@ -232,6 +255,7 @@ def is_attachment_link(div) -> bool:
 def render_attachment(div) -> str:
     a = div.find("a")
     label = a.get_text(strip=True) if a else div.get_text(strip=True)
+    label = clean_text(label, None)
     href = a["href"] if a else "#"
     return (
         f"[{label}（外部ファイル、本PoCでは未移行）]({href})\n"
@@ -261,11 +285,12 @@ def convert_body(soup) -> str:
 
     def start_para(cls: str | None, text: str):
         nonlocal last_para_idx
-        items.append({"kind": "para", "cls": cls, "text": text})
+        items.append({"kind": "para", "cls": cls, "text": clean_text(text, cls)})
         last_para_idx = len(items) - 1
 
     def append_to_last_para(text: str):
-        items[last_para_idx]["text"] += text
+        para = items[last_para_idx]
+        para["text"] += clean_text(text, para["cls"])
 
     def close_block(kind: str):
         nonlocal last_para_idx
