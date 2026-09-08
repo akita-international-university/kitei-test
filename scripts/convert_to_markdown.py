@@ -168,12 +168,13 @@ def convert_table_div(div) -> str:
     return f'<div class="table-wrapper" markdown="1">\n\n{md_table}\n\n</div>'
 
 
-def classify_unclassed(text: str, prev_class: str | None) -> str:
+def classify_unclassed(text: str) -> str:
     """クラス無しdivのテキストから、意味的に近いクラス名を推定する。
 
     このHTMLはワープロ文書からの変換由来と見られ、条見出し・項・附則見出しなどが
-    クラス無しのdivとして出現することが多い。テキストのパターンから妥当なクラスを
-    推定し、判別できない場合のみ 'unclassified' として警告つきで残す。
+    クラス無しのdivとして出現することが多い。呼び出し元で「新しい単位の開始
+    パターンに一致する」ことを確認済みの場合のみ呼ばれるため、ここでは
+    そのパターンに対応するクラス名を返す。
     """
     if RE_PAREN_HEADING.match(text):
         return "jou-hyoudai"
@@ -183,8 +184,7 @@ def classify_unclassed(text: str, prev_class: str | None) -> str:
         return "jou-text"
     if RE_NUMBERED_KOU.match(text):
         return "kou"
-    if prev_class and prev_class.startswith("fuki"):
-        return "fuki-text"
+    # 呼び出し元で is_new_unit を確認済みのため、ここには到達しない想定
     return "unclassified"
 
 
@@ -240,28 +240,37 @@ def render_attachment(div) -> str:
 
 
 def convert_body(soup) -> str:
+    """div.body直下の要素を、段落・表・附則ブロックのアイテム列として組み立てる。
+
+    クラス無しdivのテキストは、新しい単位（見出し・項番号・号の細分など）の
+    開始パターンに一致する場合のみ新しい段落として扱い、一致しない場合は
+    「直前の段落の折り返し継続」として直前の段落へ連結する。この判定は
+    常に「直前の段落が何であったか」（items中の最後のparaアイテム）を基準にし、
+    クラス無しdiv同士が連続しているか、直前がクラス付きdivだったかは区別しない。
+    ワープロ文書からの変換由来と見られるHTMLでは、文の途中でdivが分割されている
+    ケース（例:「アドバイ」＋「ザーと…」）があり、これを誤って別ブロックとして
+    分割すると読み手に文の切れ目だと誤解させてしまうため。
+    """
     body = soup.select_one("div.body")
     if body is None:
         return ""
 
-    output_parts: list[str] = []
+    items: list[dict] = []
     in_fuki = False
+    last_para_idx: int | None = None
 
-    pending_text = ""
-    pending_class = None
+    def start_para(cls: str | None, text: str):
+        nonlocal last_para_idx
+        items.append({"kind": "para", "cls": cls, "text": text})
+        last_para_idx = len(items) - 1
 
-    def flush_pending():
-        nonlocal pending_text, pending_class
-        if pending_text:
-            output_parts.append(emit(pending_class, pending_text))
-        pending_text = ""
-        pending_class = None
+    def append_to_last_para(text: str):
+        items[last_para_idx]["text"] += text
 
-    def emit(cls: str, text: str) -> str:
-        if cls == "unclassified":
-            print(f"警告: 未分類のコンテンツを検出しました: {text[:40]!r}", file=sys.stderr)
-            return text
-        return f"{text}\n{{: .{cls}}}"
+    def close_block(kind: str):
+        nonlocal last_para_idx
+        items.append({"kind": kind})
+        last_para_idx = None
 
     for div in body.find_all("div", recursive=False):
         cls = get_class(div)
@@ -271,41 +280,32 @@ def convert_body(soup) -> str:
             if not text:
                 continue
             if is_attachment_link(div):
-                flush_pending()
-                output_parts.append(render_attachment(div))
+                items.append({"kind": "attachment", "div": div})
+                last_para_idx = None
                 continue
-            inferred = classify_unclassed(text, pending_class or _last_real_class(output_parts))
-            is_new_unit_pattern = bool(
+
+            is_new_unit = bool(
                 RE_PAREN_HEADING.match(text)
                 or RE_FUKI_TITLE.match(text)
                 or RE_NUMBERED_KOU.match(text)
                 or RE_NUMBERED_SUB.match(text)
             )
-            if pending_text and is_new_unit_pattern:
-                flush_pending()
-                pending_class = inferred
-                pending_text = text
-            elif not pending_text:
-                pending_class = inferred
-                pending_text = text
-            elif pending_class != inferred:
-                # 推定クラスが変わった場合は別ブロックとして扱う（例: 附則見出し→本文）。
-                flush_pending()
-                pending_class = inferred
-                pending_text = text
+            if is_new_unit:
+                start_para(classify_unclassed(text), text)
+            elif last_para_idx is not None:
+                append_to_last_para(text)
             else:
-                # パターンに一致しない断片 = 直前の段落の折り返し継続とみなして連結する
-                pending_text += text
+                print(f"警告: 未分類のコンテンツを検出しました: {text[:40]!r}", file=sys.stderr)
+                start_para(None, text)
             continue
 
-        # クラス付きdivが来たら、保留中のクラス無しテキストを確定させる
-        flush_pending()
-
+        # クラス付きdivは常に新しい段落として扱う
         if cls == "table":
             if in_fuki:
-                output_parts.append("</div>")
+                close_block("fuki_close")
                 in_fuki = False
-            output_parts.append(convert_table_div(div))
+            items.append({"kind": "table", "div": div})
+            last_para_idx = None
             continue
 
         text = div.get_text(strip=True)
@@ -314,34 +314,44 @@ def convert_body(soup) -> str:
 
         if cls == "fuki-title":
             if in_fuki:
-                output_parts.append("</div>")
-            output_parts.append('<div class="fuki" markdown="1">')
+                close_block("fuki_close")
+            items.append({"kind": "fuki_open"})
             in_fuki = True
-            output_parts.append(emit(cls, text))
+            start_para(cls, text)
             continue
 
         if cls == "fuki-text" and (text.startswith("別表") or text.startswith("様式")):
             # 別表・様式の見出しは附則の一部ではないため、附則ブロックを閉じてから出力する
             if in_fuki:
-                output_parts.append("</div>")
+                close_block("fuki_close")
                 in_fuki = False
-            output_parts.append(emit("maegaki", text))
+            start_para("maegaki", text)
             continue
 
-        output_parts.append(emit(cls, text))
+        start_para(cls, text)
 
-    flush_pending()
     if in_fuki:
-        output_parts.append("</div>")
+        close_block("fuki_close")
 
-    return "\n\n".join(output_parts)
+    rendered = []
+    for item in items:
+        kind = item["kind"]
+        if kind == "fuki_open":
+            rendered.append('<div class="fuki" markdown="1">')
+        elif kind == "fuki_close":
+            rendered.append("</div>")
+        elif kind == "table":
+            rendered.append(convert_table_div(item["div"]))
+        elif kind == "attachment":
+            rendered.append(render_attachment(item["div"]))
+        elif kind == "para":
+            cls, text = item["cls"], item["text"]
+            if cls is None:
+                rendered.append(text)
+            else:
+                rendered.append(f"{text}\n{{: .{cls}}}")
 
-
-def _last_real_class(output_parts: list[str]) -> str | None:
-    if not output_parts:
-        return None
-    match = re.search(r"\{:\s*\.([a-zA-Z0-9_-]+)\s*\}\s*$", output_parts[-1])
-    return match.group(1) if match else None
+    return "\n\n".join(rendered)
 
 
 def convert(html_path: Path) -> tuple[str, str]:
