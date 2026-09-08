@@ -1,0 +1,9 @@
+{% if page.category %}
+<nav class="breadcrumb" aria-label="パンくずリスト">
+  <span class="breadcrumb-item">最上位</span>
+  {% for segment in page.category %}
+  <span class="breadcrumb-sep" aria-hidden="true">&gt;</span>
+  <span class="breadcrumb-item">{{ segment }}</span>
+  {% endfor %}
+</nav>
+{% endif %}

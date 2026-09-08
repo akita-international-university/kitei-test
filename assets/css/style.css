@@ -1,0 +1,183 @@
+/* ===== Base / Typography ===== */
+:root {
+  /* remを使用し、各要素自身のfont-sizeに連動して字下げ幅が変動しないようにする */
+  --indent-step: 1.5rem;
+  --color-text: #1a1a1a;
+  --color-muted: #666;
+  --color-border: #ccc;
+  --color-accent-bg: #f5f5f2;
+  --color-accent-border: #9a8f6b;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background: #fff;
+  color: var(--color-text);
+  font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+  line-height: 1.9;
+}
+
+main {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1.5em 1em 4em;
+}
+
+.site-header {
+  padding: 1em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.site-header a {
+  font-weight: 700;
+  text-decoration: none;
+  color: var(--color-text);
+}
+
+/* ===== Breadcrumb ===== */
+.breadcrumb {
+  font-size: 0.85em;
+  color: var(--color-muted);
+  margin-bottom: 1em;
+}
+
+.breadcrumb-sep {
+  margin: 0 0.4em;
+}
+
+/* ===== Title / enactment metadata ===== */
+.rule-title {
+  font-size: 1.6em;
+  margin-bottom: 0.2em;
+}
+
+.rule-meta {
+  font-size: 0.85em;
+  color: var(--color-muted);
+  margin-top: 0;
+  margin-bottom: 2em;
+}
+
+/* ===== Hierarchy indentation ===== */
+.shou {
+  margin-left: 0;
+  margin-top: 1.6em;
+  font-size: 1.25em;
+  font-weight: 700;
+}
+
+.setsu {
+  margin-left: var(--indent-step);
+  margin-top: 1.2em;
+  font-size: 1.1em;
+  font-weight: 700;
+}
+
+.jou-hyoudai {
+  margin-left: calc(var(--indent-step) * 2);
+  margin-bottom: 0;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.jou,
+.jou2 {
+  margin-left: calc(var(--indent-step) * 2);
+  margin-top: 0.2em;
+}
+
+.kou {
+  margin-left: calc(var(--indent-step) * 3);
+}
+
+.rui,
+.moku2 {
+  margin-left: calc(var(--indent-step) * 4);
+}
+
+/* 号のさらなる細分（ａ．ｂ．／１．２．等の下位項目）。項の下位項目として
+   出現する場合(jou-text/kou-text)は項より1段深く、号の下位項目として
+   出現する場合(rui-text/moku2-text)は号よりさらに1段深くする。 */
+.jou-text,
+.kou-text {
+  margin-left: calc(var(--indent-step) * 4);
+}
+
+.rui-text,
+.moku2-text {
+  margin-left: calc(var(--indent-step) * 5);
+}
+
+/* ===== 附則 (Supplementary provisions) ===== */
+.fuki {
+  margin: 2em 0;
+  padding: 1em 1.2em;
+  background: var(--color-accent-bg);
+  border-left: 4px solid var(--color-accent-border);
+}
+
+.fuki-title {
+  margin-left: 0;
+  text-align: center;
+  font-weight: 700;
+}
+
+.fuki-text,
+.fuki-number {
+  margin-left: var(--indent-step);
+}
+
+/* ===== 別表・様式見出し ===== */
+.maegaki {
+  margin-top: 1.6em;
+  font-style: italic;
+  font-weight: 700;
+}
+
+/* ===== Tables (別表・様式) ===== */
+.rule table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.rule table th,
+.rule table td {
+  border: 1px solid var(--color-border);
+  padding: 0.4em 0.6em;
+  text-align: left;
+}
+
+.rule table th {
+  background: var(--color-accent-bg);
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+/* 表ではなく単一セル内の箇条書きレイアウトだったもの */
+.table-list {
+  margin-left: calc(var(--indent-step) * 2);
+}
+
+/* 外部ファイル（Excel/Word等）への添付リンク（本PoCでは未移行） */
+.gaibu-fuzoku {
+  margin-left: calc(var(--indent-step) * 2);
+  font-style: italic;
+  color: var(--color-muted);
+}
+
+/* ===== Footer ===== */
+.site-footer {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1em;
+  font-size: 0.8em;
+  color: var(--color-muted);
+  border-top: 1px solid var(--color-border);
+}

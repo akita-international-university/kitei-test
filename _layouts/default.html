@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if page.title %}{{ page.title }} - {% endif %}{{ site.title }}</title>
+  <link rel="stylesheet" href="{{ "/assets/css/style.css" | relative_url }}">
+</head>
+<body>
+  <header class="site-header">
+    <a href="{{ "/" | relative_url }}">{{ site.title }}</a>
+  </header>
+  <main>
+    {{ content }}
+  </main>
+  <footer class="site-footer">
+    <p>
+      ここに掲載されている内容は、GitHubを用いた規程管理の可能性を検証する作業の一環で作成されたものです。
+      正規の規程については <a href="https://www4.kitei-kanri.jp/unc/aiu/doc/gakugai/index.html">国際教養大学規程集</a> をご覧ください。
+    </p>
+  </footer>
+</body>
+</html>
