@@ -410,24 +410,30 @@ def convert(html_path: Path) -> tuple[str, str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("html_file", nargs="?", help="変換対象のHTMLファイル (例: html/xxx.html)")
+    parser.add_argument(
+        "html_file",
+        nargs="?",
+        help="変換対象のHTMLファイル (例: html/xxx.html)。省略時はhtml/以下の全ファイルを変換する",
+    )
     parser.add_argument("--out", help="出力先Markdownファイルパス（省略時は _rules/<title>.md）")
-    parser.add_argument("--all", action="store_true", help="html/ 以下の全ファイルを変換する")
+    parser.add_argument(
+        "--all", action="store_true", help="html/ 以下の全ファイルを変換する（html_file省略時と同じ）"
+    )
     args = parser.parse_args()
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    if args.all:
-        targets = sorted(HTML_DIR.glob("*.html"))
-    elif args.html_file:
+    if args.html_file:
         targets = [Path(args.html_file)]
     else:
-        parser.error("html_file を指定するか --all を指定してください。")
-        return
+        # html_fileも--allも指定されない場合は、poetry run convert2markdown を
+        # そのまま「全件変換」として使えるよう、--allと同じ挙動をデフォルトとする。
+        targets = sorted(HTML_DIR.glob("*.html"))
 
+    is_single_target = len(targets) == 1 and bool(args.html_file)
     for target in targets:
         content, default_name = convert(target)
-        out_path = Path(args.out) if (args.out and not args.all) else OUTPUT_DIR / default_name
+        out_path = Path(args.out) if (args.out and is_single_target) else OUTPUT_DIR / default_name
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(content, encoding="utf-8")
         print(f"変換完了: {target} -> {out_path}")
