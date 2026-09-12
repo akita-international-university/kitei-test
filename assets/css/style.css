@@ -84,19 +84,30 @@ main {
   color: var(--color-muted);
 }
 
+/* 条・項・号は「第２２条　」のように番号+全角スペースから始まる
+   1つのテキストノードなので、2行目以降だけを字下げするハンギング
+   インデント（負のtext-indentでpadding-left分を1行目だけ相殺）で、
+   原文の折り返し体裁を再現する。番号の桁数（第１条〜第９９条等）に
+   関わらず、全角スペース1つ分(1em)の固定値で近似する。 */
 .jou,
 .jou2 {
   margin-left: calc(var(--indent-step) * 2);
   margin-top: 0.2em;
+  padding-left: 1em;
+  text-indent: -1em;
 }
 
 .kou {
   margin-left: calc(var(--indent-step) * 3);
+  padding-left: 1em;
+  text-indent: -1em;
 }
 
 .rui,
 .moku2 {
   margin-left: calc(var(--indent-step) * 4);
+  padding-left: 1em;
+  text-indent: -1em;
 }
 
 /* 号のさらなる細分（ａ．ｂ．／１．２．等の下位項目）。項の下位項目として
