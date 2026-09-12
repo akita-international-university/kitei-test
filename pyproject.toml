@@ -13,6 +13,7 @@ dependencies = [
 [project.scripts]
 getkitei = "scripts.get_kitei:main"
 convert2markdown = "scripts.convert_to_markdown:main"
+verifyconversion = "scripts.verify_conversion:main"
 
 [tool.poetry]
 packages = [{ include = "scripts" }]

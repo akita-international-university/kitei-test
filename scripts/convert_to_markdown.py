@@ -37,6 +37,7 @@ RE_PAREN_HEADING = re.compile(r"^[（(].+[）)]$")
 RE_FUKI_TITLE = re.compile(r"^附[\s\u3000]*則$")
 RE_NUMBERED_KOU = re.compile(r"^[０-９0-9]+[\s\u3000]")
 RE_NUMBERED_SUB = re.compile(r"^([０-９0-9]+[．.]|[•]|[ａ-ｚa-z][．.])")
+RE_MAEGAKI_HEADING = re.compile(r"^(別表|様式)")
 
 # 見出し系クラス。原文では見た目を整えるため(例:「附　　則」「総　　則」)、
 # 短い見出し語の中に全角スペース等が装飾目的で挿入されていることがある。
@@ -172,7 +173,7 @@ def grid_to_markdown_table(grid: list[list[str]], header_rows: int) -> str:
     return "\n".join(lines)
 
 
-def convert_table_div(div) -> str:
+def convert_table_div(div, source_name: str = "") -> str:
     table = div.find("table")
     if table is None:
         return ""
@@ -184,7 +185,8 @@ def convert_table_div(div) -> str:
         lines = [line for line in lines if line]
         if lines:
             return "<br>\n".join(lines) + "\n{: .table-list}"
-        print(f"警告: 表の解析に失敗、生テキストを出力します (id={div.get('id')})", file=sys.stderr)
+        prefix = f"[{source_name}] " if source_name else ""
+        print(f"警告: {prefix}表の解析に失敗、生テキストを出力します (id={div.get('id')})", file=sys.stderr)
         return div.get_text(separator=" ", strip=True)
     hrows = header_row_count(table)
     md_table = grid_to_markdown_table(grid, hrows)
@@ -199,6 +201,8 @@ def classify_unclassed(text: str) -> str:
     パターンに一致する」ことを確認済みの場合のみ呼ばれるため、ここでは
     そのパターンに対応するクラス名を返す。
     """
+    if RE_MAEGAKI_HEADING.match(text):
+        return "maegaki"
     if RE_PAREN_HEADING.match(text):
         return "jou-hyoudai"
     if RE_FUKI_TITLE.match(text):
@@ -232,11 +236,39 @@ def extract_category(soup, title: str) -> list[str]:
 
 
 def extract_seitei(soup) -> dict:
+    """制定日・制定機関・規程番号を抽出する。
+
+    通常は div.seitei から抽出するが、ごく一部のファイルではこれが空で、
+    代わりに div.body の先頭にクラス無し・右寄せ(align="right")のdivとして
+    同じ情報が埋め込まれている(ワープロ文書の署名欄をそのまま変換した
+    形跡)。これを見逃すと、日付・決定者・規程番号が本文の地の文として
+    連結され、意味の通らない1文になってしまう(例:「令和１年１月１日理事長
+    決定規程第１号」)。そのため、div.seitei が空の場合はこのパターンも
+    フォールバックとして検出し、該当divをdiv.bodyから取り除いておく
+    (convert_body側で本文として処理させないため)。
+    """
     node = soup.select_one("div.seitei")
-    if node is None:
-        return {}
-    texts = [d.get_text(strip=True) for d in node.find_all("div", recursive=False)]
+    texts = [d.get_text(strip=True) for d in node.find_all("div", recursive=False)] if node else []
     texts = [t for t in texts if t]
+
+    if not texts:
+        body = soup.select_one("div.body")
+        leading_divs = []
+        if body is not None:
+            for div in body.find_all("div", recursive=False):
+                if div.get("class") or div.get("align") != "right":
+                    break
+                text = div.get_text(strip=True)
+                if not text:
+                    break
+                leading_divs.append(div)
+                if len(leading_divs) >= 3:
+                    break
+        if leading_divs:
+            texts = [d.get_text(strip=True) for d in leading_divs]
+            for div in leading_divs:
+                div.decompose()
+
     result = {}
     if len(texts) >= 1:
         result["enacted_date"] = texts[0]
@@ -254,8 +286,9 @@ def is_attachment_link(div) -> bool:
 
 def render_attachment(div) -> str:
     a = div.find("a")
-    label = a.get_text(strip=True) if a else div.get_text(strip=True)
-    label = clean_text(label, None)
+    # リンクの前後に「様式１」の「１」のようにaタグの外側にテキストが
+    # 続くケースがあるため、aタグ単体ではなくdiv全体のテキストを使う。
+    label = clean_text(div.get_text(strip=True), None)
     href = a["href"] if a else "#"
     return (
         f"[{label}（外部ファイル、本PoCでは未移行）]({href})\n"
@@ -263,7 +296,7 @@ def render_attachment(div) -> str:
     )
 
 
-def convert_body(soup) -> str:
+def convert_body(soup, source_name: str = "") -> str:
     """div.body直下の要素を、段落・表・附則ブロックのアイテム列として組み立てる。
 
     クラス無しdivのテキストは、新しい単位（見出し・項番号・号の細分など）の
@@ -284,7 +317,18 @@ def convert_body(soup) -> str:
     last_para_idx: int | None = None
 
     def start_para(cls: str | None, text: str):
-        nonlocal last_para_idx
+        nonlocal last_para_idx, in_fuki
+        # 附則ブロックの開閉は、クラス付き/クラス無し(推定)を問わず一律にここで扱う。
+        # そうしないと、クラス無しdivから推定された「附則見出し」が視覚的な
+        # 附則ボックス(.fuki)で囲われない、という不整合が生じるため。
+        if cls == "fuki-title":
+            if in_fuki:
+                close_block("fuki_close")
+            items.append({"kind": "fuki_open"})
+            in_fuki = True
+        elif in_fuki and cls not in ("fuki-text", "fuki-number"):
+            close_block("fuki_close")
+            in_fuki = False
         items.append({"kind": "para", "cls": cls, "text": clean_text(text, cls)})
         last_para_idx = len(items) - 1
 
@@ -310,7 +354,8 @@ def convert_body(soup) -> str:
                 continue
 
             is_new_unit = bool(
-                RE_PAREN_HEADING.match(text)
+                RE_MAEGAKI_HEADING.match(text)
+                or RE_PAREN_HEADING.match(text)
                 or RE_FUKI_TITLE.match(text)
                 or RE_NUMBERED_KOU.match(text)
                 or RE_NUMBERED_SUB.match(text)
@@ -320,7 +365,8 @@ def convert_body(soup) -> str:
             elif last_para_idx is not None:
                 append_to_last_para(text)
             else:
-                print(f"警告: 未分類のコンテンツを検出しました: {text[:40]!r}", file=sys.stderr)
+                prefix = f"[{source_name}] " if source_name else ""
+                print(f"警告: {prefix}未分類のコンテンツを検出しました: {text[:40]!r}", file=sys.stderr)
                 start_para(None, text)
             continue
 
@@ -337,19 +383,9 @@ def convert_body(soup) -> str:
         if not text:
             continue
 
-        if cls == "fuki-title":
-            if in_fuki:
-                close_block("fuki_close")
-            items.append({"kind": "fuki_open"})
-            in_fuki = True
-            start_para(cls, text)
-            continue
-
         if cls == "fuki-text" and (text.startswith("別表") or text.startswith("様式")):
-            # 別表・様式の見出しは附則の一部ではないため、附則ブロックを閉じてから出力する
-            if in_fuki:
-                close_block("fuki_close")
-                in_fuki = False
+            # 別表・様式の見出しは附則の一部ではないため、maegakiとして扱う
+            # (附則ブロックの close は start_para が cls=="maegaki" を見て行う)
             start_para("maegaki", text)
             continue
 
@@ -366,7 +402,7 @@ def convert_body(soup) -> str:
         elif kind == "fuki_close":
             rendered.append("</div>")
         elif kind == "table":
-            rendered.append(convert_table_div(item["div"]))
+            rendered.append(convert_table_div(item["div"], source_name=source_name))
         elif kind == "attachment":
             rendered.append(render_attachment(item["div"]))
         elif kind == "para":
@@ -392,7 +428,7 @@ def convert(html_path: Path) -> tuple[str, str]:
     }
     front_matter.update(extract_seitei(soup))
 
-    body_md = convert_body(soup)
+    body_md = convert_body(soup, source_name=html_path.name)
 
     yaml_text = yaml.safe_dump(front_matter, allow_unicode=True, sort_keys=False).strip()
     # front matterはファイル先頭が "---" で始まらないとJekyllに認識されないため、
