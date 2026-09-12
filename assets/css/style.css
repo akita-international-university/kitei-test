@@ -49,6 +49,39 @@ main {
   margin: 0 0.4em;
 }
 
+/* ===== Index: category-grouped rule list ===== */
+.rule-total {
+  font-size: 0.85em;
+  color: var(--color-muted);
+  margin-bottom: 2.5em;
+}
+
+/* カテゴリ見出しは、パンくずリスト（.breadcrumb）と同じく体系上の位置を示すもの
+   なので、区切り線・件数の色をパンくずリストと揃えて統一感を持たせる。 */
+.rule-category {
+  margin-top: 2em;
+  margin-bottom: 0;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 1.15em;
+}
+
+.rule-category-count {
+  margin-left: 0.6em;
+  font-size: 0.75em;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+.rule-list {
+  margin: 0.8em 0 0;
+  padding-left: 1.4em;
+}
+
+.rule-list li {
+  margin-bottom: 0.2em;
+}
+
 /* ===== Title / enactment metadata ===== */
 .rule-title {
   font-size: 1.6em;
