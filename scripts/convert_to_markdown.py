@@ -186,7 +186,10 @@ def convert_table_div(div, source_name: str = "") -> str:
         if lines:
             return "<br>\n".join(lines) + "\n{: .table-list}"
         prefix = f"[{source_name}] " if source_name else ""
-        print(f"警告: {prefix}表の解析に失敗、生テキストを出力します (id={div.get('id')})", file=sys.stderr)
+        print(
+            f"警告: {prefix}表の解析に失敗、生テキストを出力します (id={div.get('id')})",
+            file=sys.stderr,
+        )
         return div.get_text(separator=" ", strip=True)
     hrows = header_row_count(table)
     md_table = grid_to_markdown_table(grid, hrows)
@@ -248,7 +251,11 @@ def extract_seitei(soup) -> dict:
     (convert_body側で本文として処理させないため)。
     """
     node = soup.select_one("div.seitei")
-    texts = [d.get_text(strip=True) for d in node.find_all("div", recursive=False)] if node else []
+    texts = (
+        [d.get_text(strip=True) for d in node.find_all("div", recursive=False)]
+        if node
+        else []
+    )
     texts = [t for t in texts if t]
 
     if not texts:
@@ -290,10 +297,7 @@ def render_attachment(div) -> str:
     # 続くケースがあるため、aタグ単体ではなくdiv全体のテキストを使う。
     label = clean_text(div.get_text(strip=True), None)
     href = a["href"] if a else "#"
-    return (
-        f"[{label}（外部ファイル、本PoCでは未移行）]({href})\n"
-        "{: .gaibu-fuzoku}"
-    )
+    return f"[{label}（外部ファイル、本PoCでは未移行）]({href})\n" "{: .gaibu-fuzoku}"
 
 
 def convert_body(soup, source_name: str = "") -> str:
@@ -366,7 +370,10 @@ def convert_body(soup, source_name: str = "") -> str:
                 append_to_last_para(text)
             else:
                 prefix = f"[{source_name}] " if source_name else ""
-                print(f"警告: {prefix}未分類のコンテンツを検出しました: {text[:40]!r}", file=sys.stderr)
+                print(
+                    f"警告: {prefix}未分類のコンテンツを検出しました: {text[:40]!r}",
+                    file=sys.stderr,
+                )
                 start_para(None, text)
             continue
 
@@ -430,7 +437,9 @@ def convert(html_path: Path) -> tuple[str, str]:
 
     body_md = convert_body(soup, source_name=html_path.name)
 
-    yaml_text = yaml.safe_dump(front_matter, allow_unicode=True, sort_keys=False).strip()
+    yaml_text = yaml.safe_dump(
+        front_matter, allow_unicode=True, sort_keys=False
+    ).strip()
     # front matterはファイル先頭が "---" で始まらないとJekyllに認識されないため、
     # 生成元の注記はHTMLコメントではなくYAMLコメントとしてfront matter内に置く。
     content = (
@@ -451,9 +460,13 @@ def main() -> None:
         nargs="?",
         help="変換対象のHTMLファイル (例: html/xxx.html)。省略時はhtml/以下の全ファイルを変換する",
     )
-    parser.add_argument("--out", help="出力先Markdownファイルパス（省略時は _rules/<title>.md）")
     parser.add_argument(
-        "--all", action="store_true", help="html/ 以下の全ファイルを変換する（html_file省略時と同じ）"
+        "--out", help="出力先Markdownファイルパス（省略時は _rules/<title>.md）"
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="html/ 以下の全ファイルを変換する（html_file省略時と同じ）",
     )
     args = parser.parse_args()
 
@@ -469,7 +482,11 @@ def main() -> None:
     is_single_target = len(targets) == 1 and bool(args.html_file)
     for target in targets:
         content, default_name = convert(target)
-        out_path = Path(args.out) if (args.out and is_single_target) else OUTPUT_DIR / default_name
+        out_path = (
+            Path(args.out)
+            if (args.out and is_single_target)
+            else OUTPUT_DIR / default_name
+        )
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(content, encoding="utf-8")
         print(f"変換完了: {target} -> {out_path}")

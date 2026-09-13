@@ -32,3 +32,22 @@ poetry run convert2markdown html/<対象ファイル>.html
 以前は `python -m venv .venv` と `pip install -r requirements.txt` で環境を構築していたが、
 現在は Poetry に一本化した。`requirements.txt` は削除済みのため、既存の `.venv/` を削除し、
 上記の `poetry install` で環境を再構築すること。
+
+## コードフォーマット
+
+Pythonファイル（`scripts/`）は [Black](https://black.readthedocs.io/)、それ以外のファイルは原則
+[Prettier](https://prettier.io/) で整形する。ロックファイルや `LICENSE`、`CODEOWNERS`、自動生成される
+`_rules/` 以下のMarkdown、`html/` 以下の生HTML、Jekyll/Liquidテンプレート（`_layouts/`, `_includes/`,
+`index.md`）は整形対象外（詳細は [.prettierignore](.prettierignore) を参照）。
+
+初回のみ、Prettier用の依存関係をインストールする。
+
+```bash
+npm install
+```
+
+以下のコマンドでBlack/Prettierをまとめて実行できる。
+
+```bash
+poetry run formatters
+```
