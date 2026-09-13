@@ -17,6 +17,7 @@ kramdownのブロック属性リスト（{: .classname}）を使ってMarkdown+C
 
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -453,6 +454,15 @@ def convert(html_path: Path) -> tuple[str, str]:
     return content, f"{slug}.md"
 
 
+def run_prettier(paths: list[Path]) -> None:
+    """生成したMarkdownファイルにPrettierを適用する（事前に npm install が必要）。"""
+    if not paths:
+        return
+    command = ["npx", "prettier", "--write", *(str(p) for p in paths)]
+    print(f"$ {' '.join(command)}")
+    subprocess.call(command)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -480,6 +490,7 @@ def main() -> None:
         targets = sorted(HTML_DIR.glob("*.html"))
 
     is_single_target = len(targets) == 1 and bool(args.html_file)
+    written_paths = []
     for target in targets:
         content, default_name = convert(target)
         out_path = (
@@ -490,6 +501,9 @@ def main() -> None:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(content, encoding="utf-8")
         print(f"変換完了: {target} -> {out_path}")
+        written_paths.append(out_path)
+
+    run_prettier(written_paths)
 
 
 if __name__ == "__main__":

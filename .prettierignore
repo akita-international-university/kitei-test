@@ -10,9 +10,6 @@ LICENSE
 # 元の規程管理システムから取得した生HTML（外部システムの出力をそのまま保持する）
 html/
 
-# scripts/convert_to_markdown.py が自動生成するMarkdown（手編集禁止のため対象外）
-_rules/
-
 # Jekyll/Liquidテンプレート（PrettierはLiquid構文を解釈できず、タグを壊す恐れがあるため対象外）
 _layouts/
 _includes/
