@@ -307,6 +307,15 @@ def convert_body(soup, source_name: str = "") -> str:
     ワープロ文書からの変換由来と見られるHTMLでは、文の途中でdivが分割されている
     ケース（例:「アドバイ」＋「ザーと…」）があり、これを誤って別ブロックとして
     分割すると読み手に文の切れ目だと誤解させてしまうため。
+
+    ただし、表（.table）の直後は直前の段落へ連結してはならないため
+    last_para_idxをリセットする一方、表を挟んでもその前後の地の文は同じ
+    見た目のまま続くのが自然である（例:「図」の説明文 → 表 → 説明文の続き）。
+    このケースで新しい単位のパターンにも一致しない場合、直前に使われていた
+    段落クラス（last_seen_cls、表を挟んでも保持される）を引き継いで新しい
+    段落として開始する。表の直前がmaegaki（このHTMLでは条文構造を持たない
+    地の文全般に使われている）であれば、その直後の無分類divも同じ地の文の
+    一部とみなせるため。
     """
     body = soup.select_one("div.body")
     if body is None:
@@ -315,9 +324,10 @@ def convert_body(soup, source_name: str = "") -> str:
     items: list[dict] = []
     in_fuki = False
     last_para_idx: int | None = None
+    last_seen_cls: str | None = None
 
     def start_para(cls: str | None, text: str):
-        nonlocal last_para_idx, in_fuki
+        nonlocal last_para_idx, in_fuki, last_seen_cls
         # 附則ブロックの開閉は、クラス付き/クラス無し(推定)を問わず一律にここで扱う。
         # そうしないと、クラス無しdivから推定された「附則見出し」が視覚的な
         # 附則ボックス(.fuki)で囲われない、という不整合が生じるため。
@@ -331,6 +341,8 @@ def convert_body(soup, source_name: str = "") -> str:
             in_fuki = False
         items.append({"kind": "para", "cls": cls, "text": clean_text(text, cls)})
         last_para_idx = len(items) - 1
+        if cls is not None:
+            last_seen_cls = cls
 
     def append_to_last_para(text: str):
         para = items[last_para_idx]
@@ -364,6 +376,8 @@ def convert_body(soup, source_name: str = "") -> str:
                 start_para(classify_unclassed(text), text)
             elif last_para_idx is not None:
                 append_to_last_para(text)
+            elif last_seen_cls == "maegaki":
+                start_para("maegaki", text)
             else:
                 prefix = f"[{source_name}] " if source_name else ""
                 print(f"警告: {prefix}未分類のコンテンツを検出しました: {text[:40]!r}", file=sys.stderr)
