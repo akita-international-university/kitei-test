@@ -14,10 +14,19 @@ dependencies = [
 getkitei = "scripts.get_kitei:main"
 convert2markdown = "scripts.convert_to_markdown:main"
 verifyconversion = "scripts.verify_conversion:main"
+formatters = "scripts.format:main"
 
 [tool.poetry]
 packages = [{ include = "scripts" }]
 
+[tool.black]
+target-version = ["py311"]
+
 [build-system]
 requires = ["poetry-core>=2.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "black (>=26.5.1,<27.0.0)"
+]

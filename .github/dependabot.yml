@@ -5,42 +5,55 @@
 
 version: 2
 updates:
-  - package-ecosystem: 'pip' # See documentation for possible values
-    directory: '/' # Location of package manifests
+  - package-ecosystem: "pip" # See documentation for possible values
+    directory: "/" # Location of package manifests
     schedule:
-      interval: 'monthly'
+      interval: "monthly"
     cooldown:
       default-days: 7
     assignees:
-      - 'ttsukagoshi'
-    target-branch: 'main'
+      - "ttsukagoshi"
+    target-branch: "main"
     groups:
       monthly-batch:
         patterns:
-          - '*'
-  - package-ecosystem: 'bundler'
-    directory: '/'
+          - "*"
+  - package-ecosystem: "bundler"
+    directory: "/"
     schedule:
-      interval: 'monthly'
+      interval: "monthly"
     cooldown:
       default-days: 7
     assignees:
-      - 'ttsukagoshi'
-    target-branch: 'main'
+      - "ttsukagoshi"
+    target-branch: "main"
     groups:
       monthly-batch:
         patterns:
-          - '*'
-  - package-ecosystem: 'github-actions'
-    directory: '/'
+          - "*"
+  - package-ecosystem: "npm"
+    directory: "/"
     schedule:
-      interval: 'monthly'
+      interval: "monthly"
     cooldown:
       default-days: 7
     assignees:
-      - 'ttsukagoshi'
-    target-branch: 'main'
+      - "ttsukagoshi"
+    target-branch: "main"
     groups:
       monthly-batch:
         patterns:
-          - '*'
+          - "*"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 7
+    assignees:
+      - "ttsukagoshi"
+    target-branch: "main"
+    groups:
+      monthly-batch:
+        patterns:
+          - "*"

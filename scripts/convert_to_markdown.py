@@ -17,6 +17,7 @@ kramdownのブロック属性リスト（{: .classname}）を使ってMarkdown+C
 
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -202,7 +203,10 @@ def convert_table_div(div, source_name: str = "") -> str:
         if lines:
             return "<br>\n".join(lines) + "\n{: .table-list}"
         prefix = f"[{source_name}] " if source_name else ""
-        print(f"警告: {prefix}表の解析に失敗、生テキストを出力します (id={div.get('id')})", file=sys.stderr)
+        print(
+            f"警告: {prefix}表の解析に失敗、生テキストを出力します (id={div.get('id')})",
+            file=sys.stderr,
+        )
         return div.get_text(separator=" ", strip=True)
     override = TABLE_HEADER_ROWS_OVERRIDE.get((source_name, div.get("id")))
     hrows = override if override is not None else header_row_count(table)
@@ -265,7 +269,11 @@ def extract_seitei(soup) -> dict:
     (convert_body側で本文として処理させないため)。
     """
     node = soup.select_one("div.seitei")
-    texts = [d.get_text(strip=True) for d in node.find_all("div", recursive=False)] if node else []
+    texts = (
+        [d.get_text(strip=True) for d in node.find_all("div", recursive=False)]
+        if node
+        else []
+    )
     texts = [t for t in texts if t]
 
     if not texts:
@@ -307,10 +315,7 @@ def render_attachment(div) -> str:
     # 続くケースがあるため、aタグ単体ではなくdiv全体のテキストを使う。
     label = clean_text(div.get_text(strip=True), None)
     href = a["href"] if a else "#"
-    return (
-        f"[{label}（外部ファイル、本PoCでは未移行）]({href})\n"
-        "{: .gaibu-fuzoku}"
-    )
+    return f"[{label}（外部ファイル、本PoCでは未移行）]({href})\n" "{: .gaibu-fuzoku}"
 
 
 def convert_body(soup, source_name: str = "") -> str:
@@ -324,6 +329,15 @@ def convert_body(soup, source_name: str = "") -> str:
     ワープロ文書からの変換由来と見られるHTMLでは、文の途中でdivが分割されている
     ケース（例:「アドバイ」＋「ザーと…」）があり、これを誤って別ブロックとして
     分割すると読み手に文の切れ目だと誤解させてしまうため。
+
+    ただし、表（.table）の直後は直前の段落へ連結してはならないため
+    last_para_idxをリセットする一方、表を挟んでもその前後の地の文は同じ
+    見た目のまま続くのが自然である（例:「図」の説明文 → 表 → 説明文の続き）。
+    このケースで新しい単位のパターンにも一致しない場合、直前に使われていた
+    段落クラス（last_seen_cls、表を挟んでも保持される）を引き継いで新しい
+    段落として開始する。表の直前がmaegaki（このHTMLでは条文構造を持たない
+    地の文全般に使われている）であれば、その直後の無分類divも同じ地の文の
+    一部とみなせるため。
     """
     body = soup.select_one("div.body")
     if body is None:
@@ -332,9 +346,10 @@ def convert_body(soup, source_name: str = "") -> str:
     items: list[dict] = []
     in_fuki = False
     last_para_idx: int | None = None
+    last_seen_cls: str | None = None
 
     def start_para(cls: str | None, text: str):
-        nonlocal last_para_idx, in_fuki
+        nonlocal last_para_idx, in_fuki, last_seen_cls
         # 附則ブロックの開閉は、クラス付き/クラス無し(推定)を問わず一律にここで扱う。
         # そうしないと、クラス無しdivから推定された「附則見出し」が視覚的な
         # 附則ボックス(.fuki)で囲われない、という不整合が生じるため。
@@ -348,6 +363,8 @@ def convert_body(soup, source_name: str = "") -> str:
             in_fuki = False
         items.append({"kind": "para", "cls": cls, "text": clean_text(text, cls)})
         last_para_idx = len(items) - 1
+        if cls is not None:
+            last_seen_cls = cls
 
     def append_to_last_para(text: str):
         para = items[last_para_idx]
@@ -381,9 +398,14 @@ def convert_body(soup, source_name: str = "") -> str:
                 start_para(classify_unclassed(text), text)
             elif last_para_idx is not None:
                 append_to_last_para(text)
+            elif last_seen_cls == "maegaki":
+                start_para("maegaki", text)
             else:
                 prefix = f"[{source_name}] " if source_name else ""
-                print(f"警告: {prefix}未分類のコンテンツを検出しました: {text[:40]!r}", file=sys.stderr)
+                print(
+                    f"警告: {prefix}未分類のコンテンツを検出しました: {text[:40]!r}",
+                    file=sys.stderr,
+                )
                 start_para(None, text)
             continue
 
@@ -447,7 +469,9 @@ def convert(html_path: Path) -> tuple[str, str]:
 
     body_md = convert_body(soup, source_name=html_path.name)
 
-    yaml_text = yaml.safe_dump(front_matter, allow_unicode=True, sort_keys=False).strip()
+    yaml_text = yaml.safe_dump(
+        front_matter, allow_unicode=True, sort_keys=False
+    ).strip()
     # front matterはファイル先頭が "---" で始まらないとJekyllに認識されないため、
     # 生成元の注記はHTMLコメントではなくYAMLコメントとしてfront matter内に置く。
     content = (
@@ -461,6 +485,15 @@ def convert(html_path: Path) -> tuple[str, str]:
     return content, f"{slug}.md"
 
 
+def run_prettier(paths: list[Path]) -> None:
+    """生成したMarkdownファイルにPrettierを適用する（事前に npm install が必要）。"""
+    if not paths:
+        return
+    command = ["npx", "prettier", "--write", *(str(p) for p in paths)]
+    print(f"$ {' '.join(command)}")
+    subprocess.call(command)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -468,9 +501,13 @@ def main() -> None:
         nargs="?",
         help="変換対象のHTMLファイル (例: html/xxx.html)。省略時はhtml/以下の全ファイルを変換する",
     )
-    parser.add_argument("--out", help="出力先Markdownファイルパス（省略時は _rules/<title>.md）")
     parser.add_argument(
-        "--all", action="store_true", help="html/ 以下の全ファイルを変換する（html_file省略時と同じ）"
+        "--out", help="出力先Markdownファイルパス（省略時は _rules/<title>.md）"
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="html/ 以下の全ファイルを変換する（html_file省略時と同じ）",
     )
     args = parser.parse_args()
 
@@ -484,12 +521,20 @@ def main() -> None:
         targets = sorted(HTML_DIR.glob("*.html"))
 
     is_single_target = len(targets) == 1 and bool(args.html_file)
+    written_paths = []
     for target in targets:
         content, default_name = convert(target)
-        out_path = Path(args.out) if (args.out and is_single_target) else OUTPUT_DIR / default_name
+        out_path = (
+            Path(args.out)
+            if (args.out and is_single_target)
+            else OUTPUT_DIR / default_name
+        )
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(content, encoding="utf-8")
         print(f"変換完了: {target} -> {out_path}")
+        written_paths.append(out_path)
+
+    run_prettier(written_paths)
 
 
 if __name__ == "__main__":

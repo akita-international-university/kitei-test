@@ -21,6 +21,7 @@ poetry install
 poetry run getkitei
 
 # html/*.html を _rules/ 以下のMarkdownへ変換する（引数を省略すると全件変換）
+# 変換後、生成したファイルにPrettierを自動適用する（事前に npm install が必要）
 poetry run convert2markdown
 
 # 1件だけ変換したい場合はファイルを指定する
@@ -32,3 +33,23 @@ poetry run convert2markdown html/<対象ファイル>.html
 以前は `python -m venv .venv` と `pip install -r requirements.txt` で環境を構築していたが、
 現在は Poetry に一本化した。`requirements.txt` は削除済みのため、既存の `.venv/` を削除し、
 上記の `poetry install` で環境を再構築すること。
+
+## コードフォーマット
+
+Pythonファイル（`scripts/`）は [Black](https://black.readthedocs.io/)、それ以外のファイルは原則
+[Prettier](https://prettier.io/) で整形する。ロックファイルや `LICENSE`、`CODEOWNERS`、`html/` 以下の生HTML、
+Jekyll/Liquidテンプレート（`_layouts/`, `_includes/`, `index.md`）は整形対象外（詳細は
+[.prettierignore](.prettierignore) を参照）。`_rules/` 以下の生成Markdownは整形対象であり、
+`poetry run convert2markdown` の実行時にも自動的にPrettierが適用される。
+
+初回のみ、Prettier用の依存関係をインストールする。
+
+```bash
+npm install
+```
+
+以下のコマンドでBlack/Prettierをまとめて実行できる。
+
+```bash
+poetry run formatters
+```
