@@ -44,6 +44,22 @@ RE_MAEGAKI_HEADING = re.compile(r"^(別表|様式)")
 # 短い見出し語の中に全角スペース等が装飾目的で挿入されていることがある。
 HEADING_CLASSES = {"shou", "setsu", "jou-hyoudai", "fuki-title", "maegaki"}
 
+# header_row_count()のrowspanベースの推定では検出できない表を個別に補正するための
+# 上書き表。キーは (元HTMLファイル名, table divのid)。
+#
+# 対象は「週所定労働時間」×「週所定労働日数」の組み合わせで年次有給休暇日数を
+# 定める比例付与表(いわゆる労基法の年次有給休暇比例付与のパターン)で、1行目が
+# colspanのみで区分され(rowspanが無い)、2行目がその区分を個別の日数へ分解する
+# 見出し行になっている。この形は他の一般的なデータ行(1列目が新しい項目、以降の
+# 列が値、というだけの構造)と構造的に区別できず、汎用的なヒューリスティックでは
+# 別のファイル(授業料等取扱規程・学生生活規程等)の正常なデータ行を誤って見出しと
+# 判定してしまう(issue #9の網羅チェックで確認済み)。該当2件のみ、確認済みの
+# 見出し行数を明示的に指定する。
+TABLE_HEADER_ROWS_OVERRIDE: dict[tuple[str, str], int] = {
+    ("国際教養大学における短時間労働者就業規程.html", "rule_84"): 2,
+    ("国際教養大学非常勤教員就業規程.html", "rule_104"): 2,
+}
+
 # 2文字以上連続する空白（半角スペース・タブ・全角スペース）を検出する正規表現。
 # 号番号の直後の区切りスペース(1文字)のような意味のある空白は対象にしない。
 RE_DECORATIVE_WHITESPACE = re.compile(r"[ \t　]{2,}")
@@ -192,7 +208,8 @@ def convert_table_div(div, source_name: str = "") -> str:
             file=sys.stderr,
         )
         return div.get_text(separator=" ", strip=True)
-    hrows = header_row_count(table)
+    override = TABLE_HEADER_ROWS_OVERRIDE.get((source_name, div.get("id")))
+    hrows = override if override is not None else header_row_count(table)
     md_table = grid_to_markdown_table(grid, hrows)
     return f'<div class="table-wrapper" markdown="1">\n\n{md_table}\n\n</div>'
 
