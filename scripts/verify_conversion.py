@@ -113,11 +113,15 @@ def main() -> None:
     for name, missing in missing_content:
         print(f"- {name}: {missing}")
     print()
-    print(f"## 複雑な表(rowspan/colspan)を含むファイル — issue #9の精査対象 ({len(complex_table_files)}件)")
+    print(
+        f"## 複雑な表(rowspan/colspan)を含むファイル — issue #9の精査対象 ({len(complex_table_files)}件)"
+    )
     for name in complex_table_files:
         print(f"- {name}")
     print()
-    print(f"## 外部ファイルへの添付リンクを含むファイル — issue #8の精査対象 ({len(attachment_files)}件)")
+    print(
+        f"## 外部ファイルへの添付リンクを含むファイル — issue #8の精査対象 ({len(attachment_files)}件)"
+    )
     for name in attachment_files:
         print(f"- {name}")
 

@@ -7,3 +7,6 @@ _site/
 .jekyll-cache/
 .jekyll-metadata
 .bundle/
+
+# npm (Prettier)
+node_modules/

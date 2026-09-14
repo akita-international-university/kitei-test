@@ -1,0 +1,23 @@
+# ロックファイル
+poetry.lock
+package-lock.json
+Gemfile.lock
+
+# 特殊ファイル
+LICENSE
+.github/CODEOWNERS
+
+# 元の規程管理システムから取得した生HTML（外部システムの出力をそのまま保持する）
+html/
+
+# Jekyll/Liquidテンプレート（PrettierはLiquid構文を解釈できず、タグを壊す恐れがあるため対象外）
+_layouts/
+_includes/
+index.md
+
+# ビルド成果物・依存関係
+_site/
+.venv/
+node_modules/
+vendor/
+.bundle/
