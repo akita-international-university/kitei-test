@@ -21,3 +21,7 @@ _site/
 node_modules/
 vendor/
 .bundle/
+
+# pytest / coverage の生成物
+.pytest_cache/
+htmlcov/
