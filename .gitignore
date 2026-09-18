@@ -2,6 +2,13 @@
 __pycache__/
 *.pyc
 
+# pytest
+.pytest_cache/
+
+# pytest-cov
+.coverage
+htmlcov/
+
 # Jekyll build artifacts
 _site/
 .jekyll-cache/

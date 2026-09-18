@@ -8,7 +8,7 @@ Prettierの実行には事前に `npm install` が必要。
 import subprocess
 import sys
 
-PYTHON_TARGET = "scripts"
+PYTHON_TARGETS = ["scripts", "tests"]
 
 
 def run(command: list[str]) -> int:
@@ -17,7 +17,7 @@ def run(command: list[str]) -> int:
 
 
 def main() -> None:
-    black_result = run(["black", PYTHON_TARGET])
+    black_result = run(["black", *PYTHON_TARGETS])
     prettier_result = run(["npx", "prettier", "--write", "."])
     sys.exit(black_result or prettier_result)
 

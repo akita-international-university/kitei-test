@@ -53,3 +53,21 @@ npm install
 ```bash
 poetry run formatters
 ```
+
+## テスト
+
+`scripts/` 配下の各スクリプトは [pytest](https://docs.pytest.org/) でユニットテストする。テストは
+`tests/` 以下に `test_*.py` として配置する。`get_kitei.py` のような外部HTTP通信を伴う処理は
+`unittest.mock` でモック化し、テスト実行時に実際の通信が発生しないようにしている。
+
+以下のコマンドで `poetry run formatters`（Black/Prettierによる自動整形）と pytest をまとめて実行できる。
+どちらか一方でも失敗すればコマンド全体が非ゼロ終了する。pytestの実行結果には各ファイルの
+カバレッジレポート（未カバー行を含む）もあわせて表示される。
+
+```bash
+poetry run tests
+```
+
+> [!IMPORTANT]
+> **コミット前には必ず `poetry run tests` を実行し、成功することを確認すること。**
+> 現時点ではgit hookやCIによる自動強制は行っていないため、各自の実行が前提となる。
