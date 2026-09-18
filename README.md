@@ -26,6 +26,13 @@ poetry run convert2markdown
 
 # 1件だけ変換したい場合はファイルを指定する
 poetry run convert2markdown html/<対象ファイル>.html
+
+# html/*.html から様式等の添付ファイルへのリンクを抽出し、到達性を検証する
+# （現行システムへ142回アクセスするため、0.5秒間隔で実行される）
+poetry run checkattachments > docs/investigations/attachment-links.md
+
+# 外部アクセスを行わず、リンクの抽出のみを行う
+poetry run checkattachments --offline
 ```
 
 ### 旧環境（pip + venv）からの移行
