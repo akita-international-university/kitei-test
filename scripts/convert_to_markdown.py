@@ -30,8 +30,10 @@ OUTPUT_DIR = Path(__file__).resolve().parent.parent / "_rules"
 # ファイル名に使えない文字を置き換える（get_kitei.py と同じ考え方）
 INVALID_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|]')
 
-# 外部ファイル（Excel/Word等）への添付リンクの拡張子
-ATTACHMENT_EXT_RE = re.compile(r"\.(docx?|xlsx?|pptx?|pdf)$", re.IGNORECASE)
+# 外部ファイル（Excel/Word等）への添付リンクの拡張子。
+# rtfは「国際教養大学情報公開規程」の様式１〜７で使われており、これを含めないと
+# 添付リンクが通常の段落として扱われ、リンクがMarkdown側で失われる（issue #8）。
+ATTACHMENT_EXT_RE = re.compile(r"\.(docx?|xlsx?|pptx?|pdf|rtf)$", re.IGNORECASE)
 
 # クラス無しdivのテキストから種別を推定するための正規表現
 RE_PAREN_HEADING = re.compile(r"^[（(].+[）)]$")
