@@ -25,3 +25,6 @@ vendor/
 # pytest / coverage の生成物
 .pytest_cache/
 htmlcov/
+
+# mypy の生成物
+.mypy_cache/
